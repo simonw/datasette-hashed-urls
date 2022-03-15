@@ -9,6 +9,10 @@ Optimize Datasette performance behind a caching proxy
 
 This plugin provides an alternative for Datasette's deprecated [Hashed URL mode](https://docs.datasette.io/en/0.60.2/performance.html#hashed-url-mode).
 
+## Demo
+
+A demo of this plugin is running at https://datasette-hashed-urls.vercel.app/
+
 ## Installation
 
 Install this plugin in the same environment as Datasette.

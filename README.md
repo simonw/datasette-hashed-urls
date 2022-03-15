@@ -7,6 +7,8 @@
 
 Optimize Datasette performance behind a caching proxy
 
+This plugin provides an alternative for Datasette's deprecated [Hashed URL mode](https://docs.datasette.io/en/0.60.2/performance.html#hashed-url-mode).
+
 ## Installation
 
 Install this plugin in the same environment as Datasette.
@@ -21,7 +23,7 @@ Once installed, this plugin will act on any immutable database files that are lo
 
 The database will automatically be renamed to incorporate a hash of the contents of the SQLite file - so the above database would be served as:
 
-    `http://127.0.0.1:8001/fixtures_aa7318b`
+    http://127.0.0.1:8001/fixtures_aa7318b
 
 Every page that accesss that databasae, including JSON endpoints, will be served with a far-future cache expiry header.
 

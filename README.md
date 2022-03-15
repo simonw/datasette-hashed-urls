@@ -29,7 +29,7 @@ The database will automatically be renamed to incorporate a hash of the contents
 
     http://127.0.0.1:8001/fixtures_aa7318b
 
-Every page that accesss that databasae, including JSON endpoints, will be served with a far-future cache expiry header.
+Every page that accesss that database, including JSON endpoints, will be served with a far-future cache expiry header.
 
 A caching proxy such as Cloudflare can then be used to cache and accelerate content served by Datasette.
 

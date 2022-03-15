@@ -66,7 +66,7 @@ async def test_paths_with_hash_have_cache_header(ds, path_suffix):
     response = await ds.client.get(path)
     assert response.status_code == 200
     cache_control = response.headers["cache-control"]
-    assert cache_control == "max-age=31536000"
+    assert cache_control == "max-age=31536000, public"
 
 
 @pytest.mark.asyncio

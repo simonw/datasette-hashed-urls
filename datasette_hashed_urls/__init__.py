@@ -85,7 +85,7 @@ async def handle_hashed_urls(datasette, app, scope, receive, send):
                     "type": event["type"],
                     "status": event["status"],
                     "headers": original_headers
-                    + [[b"cache-control", b"max-age=31536000"]],
+                    + [[b"cache-control", b"max-age=31536000, public"]],
                 }
             await send(event)
 

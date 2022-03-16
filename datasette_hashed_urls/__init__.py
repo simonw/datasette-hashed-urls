@@ -48,7 +48,6 @@ def asgi_wrapper(datasette):
 async def handle_hashed_urls(datasette, app, scope, receive, send):
     path = scope["path"].lstrip("/")
     db_name_and_hash = path.split("/")[0]
-    print(f"{db_name_and_hash=}")
     if ("-" not in db_name_and_hash) or (
         db_name_and_hash in datasette._hashed_url_databases
     ):

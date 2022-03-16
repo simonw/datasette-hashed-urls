@@ -73,6 +73,9 @@ async def handle_hashed_urls(datasette, app, scope, receive, send):
         await send({"type": "http.response.body", "body": b""})
         return
     else:
+        plugin_config = datasette.plugin_config("datasette-hashed-urls") or {}
+        max_age = plugin_config.get("max_age", 31536000)
+
         # Hash is correct, add a far-future cache header
         async def wrapped_send(event):
             if event["type"] == "http.response.start":
@@ -85,10 +88,13 @@ async def handle_hashed_urls(datasette, app, scope, receive, send):
                     "type": event["type"],
                     "status": event["status"],
                     "headers": original_headers
-                    + [[b"cache-control", b"max-age=31536000, public"]],
+                    + [
+                        [
+                            b"cache-control",
+                            "max-age={}, public".format(max_age).encode("latin-1"),
+                        ]
+                    ],
                 }
             await send(event)
 
         return await app(scope, receive, wrapped_send)
-
-    await app(scope, receive, send)

@@ -29,11 +29,31 @@ The database will automatically be renamed to incorporate a hash of the contents
 
     http://127.0.0.1:8001/fixtures_aa7318b
 
-Every page that accesss that database, including JSON endpoints, will be served with a far-future cache expiry header.
+Every page that accesss that database, including JSON endpoints, will be served with the following far-future cache expiry header:
+
+    cache-control: max-age=31536000, public
+
+Here `max-age=31536000` is the number of seconds in a year.
 
 A caching proxy such as Cloudflare can then be used to cache and accelerate content served by Datasette.
 
 When the database file is updated and the server is restarted, the hash will change and content will be served from a new URL. Any hits to the previous hashed URLs will be automatically redirected.
+
+## Configuration
+
+You can use the `max_age` plugin configuration setting to change the cache duration specified in the `cache-control` HTTP header.
+
+To set the cache expiry time to one hour you would add this to your Datasette `metadata.json` configuration file:
+
+```json
+{
+    "plugins": {
+        "datasette-hashed-urls": {
+            "max_age": 3600
+        }
+    }
+}
+```
 
 ## Development
 

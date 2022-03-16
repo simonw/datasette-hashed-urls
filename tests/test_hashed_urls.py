@@ -4,14 +4,18 @@ import sqlite_utils
 
 
 @pytest.fixture
-def ds(tmpdir):
+def db_files(tmpdir):
     mutable = str(tmpdir / "mutable.db")
     immutable = str(tmpdir / "immutable.db")
     rows = [{"id": 1}, {"id": 2}]
     sqlite_utils.Database(mutable)["t"].insert_all(rows, pk="id")
     sqlite_utils.Database(immutable)["t"].insert_all(rows, pk="id")
-    ds = Datasette(files=[mutable], immutables=[immutable])
-    return ds
+    return mutable, immutable
+
+
+@pytest.fixture
+def ds(db_files):
+    return Datasette(files=[db_files[0]], immutables=[db_files[1]])
 
 
 @pytest.mark.asyncio
@@ -59,14 +63,20 @@ async def test_paths_with_no_hash_redirect(ds, path, should_redirect):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path_suffix", ("", "/t", "/t?id=1", "/t/1"))
-async def test_paths_with_hash_have_cache_header(ds, path_suffix):
+@pytest.mark.parametrize("max_age", (None, 3600))
+async def test_paths_with_hash_have_cache_header(db_files, path_suffix, max_age):
+    metadata = {}
+    if max_age:
+        metadata["plugins"] = {"datasette-hashed-urls": {"max_age": max_age}}
+    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]], metadata=metadata)
     await ds.invoke_startup()
     immutable_hash = ds._hashed_url_databases["immutable"]
     path = "/immutable_{}{}".format(immutable_hash, path_suffix)
     response = await ds.client.get(path)
     assert response.status_code == 200
     cache_control = response.headers["cache-control"]
-    assert cache_control == "max-age=31536000, public"
+    expected = "max-age={}, public".format(max_age or 31536000)
+    assert cache_control == expected
 
 
 @pytest.mark.asyncio

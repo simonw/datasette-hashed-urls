@@ -9,11 +9,8 @@ def startup(datasette):
     datasette._hashed_url_databases = {}
     for name, database in datasette.databases.items():
         if database.hash:
-            assert (
-                "_" not in name
-            ), 'datasette-hashed-urls does not work with databases with "_" in their name'
             datasette._hashed_url_databases[name] = database.hash[:7]
-            new_name = "{}_{}".format(name, database.hash[:7])
+            new_name = "{}-{}".format(name, database.hash[:7])
             new_databases[new_name] = database
             database.name = new_name
         else:
@@ -34,8 +31,11 @@ def asgi_wrapper(datasette):
             # or /xxx_yyy where xxx is the name of an immutable database
             # and where the first page component matches a database name
             path = scope["path"].lstrip("/")
-            db_name = path.split("/")[0].split("_")[0]
-            if db_name in datasette._hashed_url_databases:
+            first_component = path.split("/")[0]
+            db_without_hash = path.split("/")[0].rsplit("-", 1)[0]
+            if (first_component in datasette._hashed_url_databases) or (
+                db_without_hash in datasette._hashed_url_databases
+            ):
                 await handle_hashed_urls(datasette, app, scope, receive, send)
                 return
             await app(scope, receive, send)
@@ -48,17 +48,20 @@ def asgi_wrapper(datasette):
 async def handle_hashed_urls(datasette, app, scope, receive, send):
     path = scope["path"].lstrip("/")
     db_name_and_hash = path.split("/")[0]
-    if "_" not in db_name_and_hash:
+    print(f"{db_name_and_hash=}")
+    if ("-" not in db_name_and_hash) or (
+        db_name_and_hash in datasette._hashed_url_databases
+    ):
         db_name = db_name_and_hash
         incoming_hash = ""
     else:
-        db_name, _, incoming_hash = db_name_and_hash.partition("_")
+        db_name, incoming_hash = db_name_and_hash.rsplit("-", 1)
     current_hash = datasette._hashed_url_databases[db_name]
     if current_hash != incoming_hash:
         # Send the redirect
         path_bits = path.split("/")
         new_path = "/" + "/".join(
-            ["{}_{}".format(db_name, current_hash)] + path_bits[1:]
+            ["{}-{}".format(db_name, current_hash)] + path_bits[1:]
         )
         if scope.get("query_string"):
             new_path += "?" + scope["query_string"].decode("latin-1")

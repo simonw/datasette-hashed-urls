@@ -27,7 +27,7 @@ Once installed, this plugin will act on any immutable database files that are lo
 
 The database will automatically be renamed to incorporate a hash of the contents of the SQLite file - so the above database would be served as:
 
-    http://127.0.0.1:8001/fixtures_aa7318b
+    http://127.0.0.1:8001/fixtures-aa7318b
 
 Every page that accesss that database, including JSON endpoints, will be served with the following far-future cache expiry header:
 

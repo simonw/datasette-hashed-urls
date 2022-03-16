@@ -7,7 +7,11 @@
 
 Optimize Datasette performance behind a caching proxy
 
-This plugin provides an alternative for Datasette's deprecated [Hashed URL mode](https://docs.datasette.io/en/0.60.2/performance.html#hashed-url-mode).
+When you open a database file in immutable mode using the `-i` option, Datasette calculates a SHA-256 hash of the contents of that file on startup.
+
+This content hash can then optionally be used to create URLs that are guaranteed to change if the contents of the file changes in the future.
+
+The result is pages  that can be cached indefinitely by both browsers and caching proxies - providing a significant performance boost.
 
 ## Demo
 
@@ -54,6 +58,12 @@ To set the cache expiry time to one hour you would add this to your Datasette `m
     }
 }
 ```
+
+## History
+
+This functionality used to ship as part of Datasette itself, as a feature called [Hashed URL mode](https://docs.datasette.io/en/0.60.2/performance.html#hashed-url-mode).
+
+That feature has been deprecated and will be removed in Datasette 1.0. This plugin should be used as an alternative.
 
 ## Development
 

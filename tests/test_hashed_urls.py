@@ -16,7 +16,7 @@ def db_files(tmpdir):
 
 @pytest_asyncio.fixture
 async def ds(db_files):
-    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]])
+    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]], crossdb=True)
     await ds.invoke_startup()
     return ds
 
@@ -96,3 +96,15 @@ async def test_links_on_pages(ds, path):
     hash = ds.get_database("this-is-immutable").hash[:7]
     response = await ds.client.get(path, follow_redirects=True)
     assert "/this-is-immutable-{}".format(hash) in response.text
+
+
+@pytest.mark.asyncio
+async def test_crossdb(ds):
+    response = await ds.client.get(
+        "/_memory.json",
+        params={
+            "sql": "select * from [this-is-mutable].t union all select * from [this-is-immutable].t",
+            "_shape": "array",
+        },
+    )
+    assert response.json() == [{"id": 1}, {"id": 2}, {"id": 1}, {"id": 2}]

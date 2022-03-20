@@ -1,22 +1,17 @@
-import collections
 from datasette import hookimpl
 from functools import wraps
 
 
 @hookimpl
 def startup(datasette):
-    new_databases = collections.OrderedDict()
     datasette._hashed_url_databases = {}
     for name, database in datasette.databases.items():
         if database.hash:
-            datasette._hashed_url_databases[name] = database.hash[:7]
-            new_name = "{}-{}".format(name, database.hash[:7])
-            new_databases[new_name] = database
-            database.name = new_name
-        else:
-            new_databases[name] = database
-    datasette.databases.clear()
-    datasette.databases.update(new_databases)
+            hash = database.hash[:7]
+            datasette._hashed_url_databases[name] = hash
+            route = "{}-{}".format(name, hash)
+            database.route = route
+            datasette._hashed_url_databases[name] = hash
 
 
 @hookimpl
@@ -28,7 +23,7 @@ def asgi_wrapper(datasette):
                 await app(scope, receive, send)
                 return
             # Only trigger on pages with a path that starts with /xxx
-            # or /xxx_yyy where xxx is the name of an immutable database
+            # or /xxx-yyy where xxx is the name of an immutable database
             # and where the first page component matches a database name
             path = scope["path"].lstrip("/")
             first_component = path.split("/")[0]

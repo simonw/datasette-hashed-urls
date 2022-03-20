@@ -1,5 +1,6 @@
 from datasette.app import Datasette
 import pytest
+import pytest_asyncio
 import sqlite_utils
 
 
@@ -13,20 +14,18 @@ def db_files(tmpdir):
     return mutable, immutable
 
 
-@pytest.fixture
-def ds(db_files):
-    return Datasette(files=[db_files[0]], immutables=[db_files[1]])
+@pytest_asyncio.fixture
+async def ds(db_files):
+    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]])
+    await ds.invoke_startup()
+    return ds
 
 
 @pytest.mark.asyncio
-async def test_immutable_database_renamed_on_startup(ds):
-    await ds.invoke_startup()
-    databases = (await ds.client.get("/-/databases.json")).json()
-    names = [db["name"] for db in databases]
-    assert len(names) == 2
-    assert "this-is-mutable" in names
-    other_name = [name for name in names if name != "this-is-mutable"][0]
-    assert other_name.startswith("this-is-immutable-")
+async def test_immutable_database_has_new_route_on_startup(ds):
+
+    route = ds.databases["this-is-immutable"].route
+    assert route.startswith("this-is-immutable-")
 
 
 @pytest.mark.asyncio
@@ -44,7 +43,6 @@ async def test_immutable_database_renamed_on_startup(ds):
     ),
 )
 async def test_paths_with_no_hash_redirect(ds, path, should_redirect):
-    await ds.invoke_startup()
     immutable_hash = ds._hashed_url_databases["this-is-immutable"]
     response = await ds.client.get(path)
     assert (
@@ -77,3 +75,24 @@ async def test_paths_with_hash_have_cache_header(db_files, path_suffix, max_age)
     cache_control = response.headers["cache-control"]
     expected = "max-age={}, public".format(max_age or 31536000)
     assert cache_control == expected
+
+
+@pytest.mark.asyncio
+async def test_index_page(ds):
+    hash = ds.get_database("this-is-immutable").hash[:7]
+    response = await ds.client.get("/")
+    assert (
+        '<a href="/this-is-immutable-{}">this-is-immutable</a>'.format(hash)
+        in response.text
+    )
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize(
+    "path",
+    ("/", "/this-is-immutable", "/this-is-immutable/t", "/this-is-immutable/t/1"),
+)
+async def test_links_on_pages(ds, path):
+    hash = ds.get_database("this-is-immutable").hash[:7]
+    response = await ds.client.get(path, follow_redirects=True)
+    assert "/this-is-immutable-{}".format(hash) in response.text

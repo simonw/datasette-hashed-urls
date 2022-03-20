@@ -32,7 +32,7 @@ setup(
     version=VERSION,
     packages=["datasette_hashed_urls"],
     entry_points={"datasette": ["hashed_urls = datasette_hashed_urls"]},
-    install_requires=["datasette"],
+    install_requires=["datasette>=0.61a0"],
     extras_require={"test": ["pytest", "pytest-asyncio", "sqlite-utils"]},
     python_requires=">=3.7",
 )

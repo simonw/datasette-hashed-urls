@@ -34,9 +34,13 @@ async def test_immutable_database_has_new_route_on_startup(ds):
     (
         ("/", False),
         ("/this-is-mutable", False),
+        ("/this-is-mutable?sql=select+1", False),
+        ("/this-is-mutable.json?sql=select+1", False),
         ("/this-is-mutable/t", False),
         ("/this-is-mutable/t/1", False),
         ("/this-is-immutable", True),
+        ("/this-is-immutable?sql=select+1", True),
+        ("/this-is-immutable.json?sql=select+1", True),
         ("/this-is-immutable/t", True),
         ("/this-is-immutable/t?id=1", True),
         ("/this-is-immutable/t/1", True),
@@ -55,6 +59,9 @@ async def test_paths_with_no_hash_redirect(ds, path, should_redirect):
             "/this-is-immutable", "/this-is-immutable-{}".format(immutable_hash)
         )
         assert response.headers["location"] == expected_path
+        # Fetch that one too and make sure it is 200
+        second_response = await ds.client.get(response.headers["location"])
+        assert second_response.status_code == 200
     else:
         assert response.status_code == 200
 

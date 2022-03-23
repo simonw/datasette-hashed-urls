@@ -27,9 +27,11 @@ def asgi_wrapper(datasette):
             # and where the first page component matches a database name
             path = scope["path"].lstrip("/")
             first_component = path.split("/")[0]
-            db_without_hash = path.split("/")[0].rsplit("-", 1)[0]
-            if (first_component in datasette._hashed_url_databases) or (
-                db_without_hash in datasette._hashed_url_databases
+            # Might have a format like .json on the end
+            first_component_without_format = first_component.split(".")[0]
+            db_without_hash_or_format = first_component_without_format.rsplit("-", 1)[0]
+            if (first_component_without_format in datasette._hashed_url_databases) or (
+                db_without_hash_or_format in datasette._hashed_url_databases
             ):
                 await handle_hashed_urls(datasette, app, scope, receive, send)
                 return
@@ -42,20 +44,34 @@ def asgi_wrapper(datasette):
 
 async def handle_hashed_urls(datasette, app, scope, receive, send):
     path = scope["path"].lstrip("/")
-    db_name_and_hash = path.split("/")[0]
-    if ("-" not in db_name_and_hash) or (
-        db_name_and_hash in datasette._hashed_url_databases
+    first_component = path.split("/")[0]
+
+    if "." in first_component:
+        first_component_without_format, _, format = first_component.partition(".")
+    else:
+        first_component_without_format = first_component
+        format = None
+
+    if ("-" not in first_component_without_format) or (
+        first_component_without_format in datasette._hashed_url_databases
     ):
-        db_name = db_name_and_hash
+        db_name = first_component_without_format
         incoming_hash = ""
     else:
-        db_name, incoming_hash = db_name_and_hash.rsplit("-", 1)
+        db_name, incoming_hash = first_component_without_format.rsplit("-", 1)
+
     current_hash = datasette._hashed_url_databases[db_name]
     if current_hash != incoming_hash:
         # Send the redirect
         path_bits = path.split("/")
+
         new_path = "/" + "/".join(
-            ["{}-{}".format(db_name, current_hash)] + path_bits[1:]
+            [
+                "{}-{}{}".format(
+                    db_name, current_hash, ".{}".format(format) if format else ""
+                )
+            ]
+            + path_bits[1:]
         )
         if scope.get("query_string"):
             new_path += "?" + scope["query_string"].decode("latin-1")

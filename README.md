@@ -43,6 +43,8 @@ A caching proxy such as Cloudflare can then be used to cache and accelerate cont
 
 When the database file is updated and the server is restarted, the hash will change and content will be served from a new URL. Any hits to the previous hashed URLs will be automatically redirected.
 
+If you run Datasette using the `--crossdb` option to enable [cross-database queries](https://docs.datasette.io/en/stable/sql_queries.html#cross-database-queries) the `_memory` database will also have a hash added to its URL - in this case, the hash will be a combination of the hashes of the other attached databases.
+
 ## Configuration
 
 You can use the `max_age` plugin configuration setting to change the cache duration specified in the `cache-control` HTTP header.

@@ -52,4 +52,5 @@ jobs:
           --install https://github.com/simonw/datasette-hashed-urls/archive/$GITHUB_SHA.zip \
           --about 'datasette-hashed-urls demo' \
           --about_url 'https://datasette.io/plugins/datasette-hashed-urls' \
-          --token $VERCEL_TOKEN
+          --token $VERCEL_TOKEN \
+          --scope datasette

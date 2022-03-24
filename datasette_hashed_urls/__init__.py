@@ -76,11 +76,21 @@ async def handle_hashed_urls(datasette, app, scope, receive, send):
         if scope.get("query_string"):
             new_path += "?" + scope["query_string"].decode("latin-1")
 
+        redirect_headers = [[b"location", new_path.encode("latin1")]]
+        if datasette.cors:
+            redirect_headers.extend(
+                [
+                    [b"access-control-allow-origin", b"*"],
+                    [b"access-control-allow-headers", b"authorization"],
+                    [b"access-control-expose-headers", b"link"],
+                ]
+            )
+
         await send(
             {
                 "type": "http.response.start",
                 "status": 302,
-                "headers": [[b"location", new_path.encode("latin1")]],
+                "headers": redirect_headers,
             }
         )
         await send({"type": "http.response.body", "body": b""})

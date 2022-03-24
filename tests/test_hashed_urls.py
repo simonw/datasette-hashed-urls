@@ -115,3 +115,21 @@ async def test_crossdb(ds):
         },
     )
     assert response.json() == [{"id": 1}, {"id": 2}, {"id": 1}, {"id": 2}]
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("should_cors", (True, False))
+async def test_cors_headers_on_redirect(ds, should_cors):
+    ds.cors = should_cors
+    response = await ds.client.get("/this-is-immutable.json?sql=select+1")
+    cors_headers = {
+        "access-control-allow-origin": "*",
+        "access-control-allow-headers": "authorization",
+        "access-control-expose-headers": "link",
+    }
+    if should_cors:
+        for key, value in cors_headers.items():
+            assert response.headers[key] == value
+    else:
+        for key in cors_headers:
+            assert key not in response.headers

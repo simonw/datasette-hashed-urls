@@ -114,7 +114,12 @@ async def test_crossdb(ds):
             "_shape": "array",
         },
     )
-    assert response.json() == [{"id": 1}, {"id": 2}, {"id": 1}, {"id": 2}]
+    # Should redirect
+    assert response.status_code == 302
+    path = response.headers["location"]
+    assert path.startswith("/_memory-")
+    response2 = await ds.client.get(path)
+    assert response2.json() == [{"id": 1}, {"id": 2}, {"id": 1}, {"id": 2}]
 
 
 @pytest.mark.asyncio

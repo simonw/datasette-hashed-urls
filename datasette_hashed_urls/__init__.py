@@ -1,17 +1,29 @@
 from datasette import hookimpl
 from functools import wraps
+import hashlib
 
 
 @hookimpl
 def startup(datasette):
     datasette._hashed_url_databases = {}
+    all_hashes = []
     for name, database in datasette.databases.items():
         if database.hash:
+            all_hashes.append(database.hash)
             hash = database.hash[:7]
             datasette._hashed_url_databases[name] = hash
             route = "{}-{}".format(name, hash)
             database.route = route
             datasette._hashed_url_databases[name] = hash
+    if datasette.crossdb and all_hashes:
+        # Set up a hashed route for _memory too, as a combo
+        # of all of the other hashes
+        memory_hash = hashlib.sha256(
+            "\n".join(all_hashes).encode("latin-1")
+        ).hexdigest()[:7]
+        memory = datasette.get_database("_memory")
+        memory.route = "_memory-{}".format(memory_hash)
+        datasette._hashed_url_databases["_memory"] = memory_hash
 
 
 @hookimpl

@@ -138,3 +138,22 @@ async def test_cors_headers_on_redirect(ds, should_cors):
     else:
         for key in cors_headers:
             assert key not in response.headers
+
+
+@pytest.mark.asyncio
+@pytest.mark.parametrize("cache_on_errors", (True, False))
+async def test_cache_on_errors(db_files, cache_on_errors):
+    metadata = {}
+    metadata["plugins"] = {"datasette-hashed-urls": {"cache_on_errors": cache_on_errors}}
+    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]], metadata=metadata)
+    await ds.invoke_startup()
+    immutable_hash = ds._hashed_url_databases["this-is-immutable"]
+    path = "/this-is-immutable-{}{}".format(immutable_hash, ".json?sql=error")
+    response = await ds.client.get(path)
+    assert response.status_code == 400
+    assert (
+        response.headers["cache-control"] == "max-age=31536000, public"
+    ) if cache_on_errors else (
+        "cache-control" not in response.headers
+        or response.headers["cache-control"] == "max-age=5"
+    )

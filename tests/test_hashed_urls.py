@@ -30,50 +30,67 @@ async def test_immutable_database_has_new_route_on_startup(ds):
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize(
-    "path,should_redirect",
+    "path,expected_redirect",
     (
-        ("/", False),
-        ("/this-is-mutable", False),
-        ("/this-is-mutable?sql=select+1", False),
-        ("/this-is-mutable.json?sql=select+1", False),
-        ("/this-is-mutable/t", False),
-        ("/this-is-mutable/t/1", False),
-        ("/this-is-immutable", True),
-        ("/this-is-immutable?sql=select+1", True),
-        ("/this-is-immutable.json?sql=select+1", True),
-        ("/this-is-immutable/t", True),
-        ("/this-is-immutable/t?id=1", True),
-        ("/this-is-immutable/t/1", True),
+        ("/", None),
+        ("/this-is-mutable", None),
+        ("/this-is-mutable?sql=select+1", "query"),
+        ("/this-is-mutable.json?sql=select+1", "query"),
+        ("/this-is-mutable/t", None),
+        ("/this-is-mutable/t/1", None),
+        ("/this-is-immutable", "hashed"),
+        ("/this-is-immutable?sql=select+1", "hashed"),
+        ("/this-is-immutable.json?sql=select+1", "hashed"),
+        ("/this-is-immutable/t", "hashed"),
+        ("/this-is-immutable/t?id=1", "hashed"),
+        ("/this-is-immutable/t/1", "hashed"),
     ),
 )
-async def test_paths_with_no_hash_redirect(ds, path, should_redirect):
+async def test_paths_with_no_hash_redirect(ds, path, expected_redirect):
     immutable_hash = ds._hashed_url_databases["this-is-immutable"]
     response = await ds.client.get(path)
     assert (
         "cache-control" not in response.headers
         or response.headers["cache-control"] == "max-age=5"
     )
-    if should_redirect:
-        assert response.status_code == 302
+    if expected_redirect is None:
+        assert response.status_code == 200
+        return
+
+    assert response.status_code == 302
+    if expected_redirect == "hashed":
         expected_path = path.replace(
-            "/this-is-immutable", "/this-is-immutable-{}".format(immutable_hash)
+            "/this-is-immutable", "/this-is-immutable-{}".format(immutable_hash), 1
         )
         assert response.headers["location"] == expected_path
-        # Fetch that one too and make sure it is 200
         second_response = await ds.client.get(response.headers["location"])
-        assert second_response.status_code == 200
+        if "?sql=" in path:
+            assert second_response.status_code == 302
+            expected_second = response.headers["location"].replace(
+                "/this-is-immutable-{}".format(immutable_hash),
+                "/this-is-immutable-{}/-/query".format(immutable_hash),
+                1,
+            )
+            assert second_response.headers["location"] == expected_second
+        else:
+            assert second_response.status_code == 200
+    elif expected_redirect == "query":
+        expected_path = path.replace(
+            "/this-is-mutable", "/this-is-mutable/-/query", 1
+        )
+        assert response.headers["location"] == expected_path
     else:
-        assert response.status_code == 200
+        raise AssertionError(f"Unexpected redirect type: {expected_redirect}")
 
 
 @pytest.mark.asyncio
 @pytest.mark.parametrize("path_suffix", ("", "/t", "/t?id=1", "/t/1"))
 @pytest.mark.parametrize("max_age", (None, 3600))
 async def test_paths_with_hash_have_cache_header(db_files, path_suffix, max_age):
-    metadata = {}
+    config = {}
     if max_age:
-        metadata["plugins"] = {"datasette-hashed-urls": {"max_age": max_age}}
-    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]], metadata=metadata)
+        config["plugins"] = {"datasette-hashed-urls": {"max_age": max_age}}
+    ds = Datasette(files=[db_files[0]], immutables=[db_files[1]], config=config)
     await ds.invoke_startup()
     immutable_hash = ds._hashed_url_databases["this-is-immutable"]
     path = "/this-is-immutable-{}{}".format(immutable_hash, path_suffix)
@@ -113,12 +130,17 @@ async def test_crossdb(ds):
             "sql": "select * from [this-is-mutable].t union all select * from [this-is-immutable].t",
             "_shape": "array",
         },
+        follow_redirects=False,
     )
     # Should redirect
     assert response.status_code == 302
     path = response.headers["location"]
     assert path.startswith("/_memory-")
-    response2 = await ds.client.get(path)
+    response2 = await ds.client.get(path, follow_redirects=False)
+    # Datasette 1.0a20 introduces an extra redirect to the query view
+    if response2.status_code == 302:
+        response2 = await ds.client.get(response2.headers["location"], follow_redirects=False)
+    assert response2.status_code == 200
     assert response2.json() == [{"id": 1}, {"id": 2}, {"id": 1}, {"id": 2}]
 
 

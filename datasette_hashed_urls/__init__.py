@@ -110,10 +110,14 @@ async def handle_hashed_urls(datasette, app, scope, receive, send):
     else:
         plugin_config = datasette.plugin_config("datasette-hashed-urls") or {}
         max_age = plugin_config.get("max_age", 31536000)
+        cache_on_errors = plugin_config.get("cache_on_errors", True)
 
         # Hash is correct, add a far-future cache header
         async def wrapped_send(event):
-            if event["type"] == "http.response.start":
+            if (
+                event["type"] == "http.response.start" 
+                and (cache_on_errors or event["status"] < 400)
+            ):
                 original_headers = [
                     pair
                     for pair in event.get("headers")

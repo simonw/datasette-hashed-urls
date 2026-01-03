@@ -61,6 +61,20 @@ To set the cache expiry time to one hour you would add this to your Datasette `m
 }
 ```
 
+By default, `cache_on_errors` is `true`, which means that caching is applied to all responses despite its status code. 
+
+You can set it to `false` if you prefer to skip plugin's caching logic on responses where HTTP status code >= 400.
+
+```json
+{
+    "plugins": {
+        "datasette-hashed-urls": {
+            "cache_on_errors": false
+        }
+    }
+}
+```
+
 ## History
 
 This functionality used to ship as part of Datasette itself, as a feature called [Hashed URL mode](https://docs.datasette.io/en/0.60.2/performance.html#hashed-url-mode).
